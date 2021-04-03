@@ -3,12 +3,15 @@ import path from 'path'
 import cors from 'cors'
 import bodyParser from 'body-parser'
 import sockjs from 'sockjs'
+import axios from 'axios'
 import { renderToStaticNodeStream } from 'react-dom/server'
 import React from 'react'
 
 import cookieParser from 'cookie-parser'
 import config from './config'
 import Html from '../client/html'
+
+const { writeFile, readFile } = require('fs').promises
 
 require('colors')
 
@@ -25,15 +28,73 @@ let connections = []
 const port = process.env.PORT || 8090
 const server = express()
 
+const setHeaders = (req, res, next) => {
+  res.set('x-skillcrucial-user', 'c3c064b0-c45b-4807-b710-0d5bb66386f0')
+  res.set('Access-Control-Expose-Headers', 'X-SKILLCRUCIAL-USER')
+  next()
+}
+
 const middleware = [
   cors(),
   express.static(path.resolve(__dirname, '../dist/assets')),
   bodyParser.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 }),
   bodyParser.json({ limit: '50mb', extended: true }),
-  cookieParser()
+  cookieParser(),
+  setHeaders
 ]
 
 middleware.forEach((it) => server.use(it))
+
+// function getUsers() {
+
+// }
+
+server.get('/api/v1/users', async (req, res) => {
+  const users = await readFile(`${__dirname}/data/users.json`, { encoding: 'utf8' })
+    .then((text) => {
+      console.log('Read File!')
+      return JSON.parse(text)
+    })
+    .catch(async () => {
+      console.log('No File!')
+      const url = 'https://jsonplaceholder.typicode.com/users'
+      const result = await axios(url)
+        .then(({ data }) => {
+          writeFile(`${__dirname}/data/users.json`, JSON.stringify(data), { encoding: 'utf8' })
+          return data
+        })
+        .catch((err) => err)
+      return result
+    })
+
+  res.json(users)
+})
+
+server.post('/api/v1/users', async (req, res) => {
+  const userData = { ...req.body }
+
+  const result = await readFile(`${__dirname}/data/users.json`, { encoding: 'utf8' })
+    .then((text) => {
+      const users = JSON.parse(text)
+      const newId = users[users.length - 1].id + 1
+      const usersUpdated = [...users, { id: newId, ...userData }]
+      writeFile(`${__dirname}/data/users.json`, JSON.stringify(usersUpdated), { encoding: 'utf8' })
+      return { status: 'success', id: newId }
+    })
+    .catch(async () => {
+      const url = 'https://jsonplaceholder.typicode.com/users'
+      const status = await axios(url)
+        .then(({ data: users }) => {
+          const newId = users[users.length - 1].id + 1
+          const usersUpdated = [...users, { id: newId, ...userData }]
+          writeFile(`${__dirname}/data/users.json`, JSON.stringify(usersUpdated), { encoding: 'utf8' })
+          return { status: 'success', id: newId }
+        })
+        .catch((err) => err)
+      return status
+    })
+  res.json(result)
+})
 
 server.use('/api/', (req, res) => {
   res.status(404)
