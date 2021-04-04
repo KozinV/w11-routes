@@ -11,7 +11,7 @@ import cookieParser from 'cookie-parser'
 import config from './config'
 import Html from '../client/html'
 
-const { writeFile, readFile } = require('fs').promises
+const { writeFile, readFile, unlink } = require('fs').promises
 
 require('colors')
 
@@ -96,6 +96,45 @@ server.post('/api/v1/users', async (req, res) => {
   res.json(result)
 })
 
+server.patch('/api/v1/users/:userId', async (req, res) => {
+  const { userId } = req.params
+  const newData = req.body
+  await readFile(`${__dirname}/data/users.json`, { encoding: 'utf8' })
+    .then((text) => {
+      const users = JSON.parse(text)
+      const updatedUserList = users.map((user) => {
+        if (user.id === +userId) {
+          return { ...user, ...newData }
+        }
+        return user
+      })
+      writeFile(`${__dirname}/data/users.json`, JSON.stringify(updatedUserList), { encoding: 'utf8' })
+    })
+    .catch((err) => {
+      console.log(err)
+    })
+  res.json({ status: 'success', id: userId })
+})
+
+server.delete('/api/v1/users/:userId', async (req, res) => {
+  const { userId } = req.params
+  await readFile(`${__dirname}/data/users.json`, { encoding: 'utf8' })
+    .then((text) => {
+      const users = JSON.parse(text)
+      const updatedUserList = users.filter((user) => user.id !== +userId)
+      writeFile(`${__dirname}/data/users.json`, JSON.stringify(updatedUserList), { encoding: 'utf8' })
+    })
+    .catch((err) => {
+      console.log(err)
+    })
+  res.json({ status: 'success', id: userId })
+})
+
+server.delete('/api/v1/users', async (req, res) => {
+  await unlink(`${__dirname}/data/users.json`)
+  res.json({ file: "delete" })
+})
+
 server.use('/api/', (req, res) => {
   res.status(404)
   res.end()
@@ -132,7 +171,7 @@ if (config.isSocketsEnabled) {
   const echo = sockjs.createServer()
   echo.on('connection', (conn) => {
     connections.push(conn)
-    conn.on('data', async () => {})
+    conn.on('data', async () => { })
 
     conn.on('close', () => {
       connections = connections.filter((c) => c.readyState !== 3)
