@@ -10,6 +10,7 @@ import React from 'react'
 import cookieParser from 'cookie-parser'
 import config from './config'
 import Html from '../client/html'
+import { ESRCH } from 'constants'
 
 const { writeFile, readFile, unlink } = require('fs').promises
 
@@ -132,6 +133,7 @@ server.delete('/api/v1/users/:userId', async (req, res) => {
 
 server.delete('/api/v1/users', async () => {
   await unlink(`${__dirname}/data/users.json`)
+  res.json({ status: "deleted"})
 })
 
 server.use('/api/', (req, res) => {
