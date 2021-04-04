@@ -119,10 +119,10 @@ server.patch('/api/v1/users/:userId', async (req, res) => {
 server.delete('/api/v1/users/:userId', async (req, res) => {
   const { userId } = req.params
   await readFile(`${__dirname}/data/users.json`, { encoding: 'utf8' })
-    .then((text) => {
+    .then(async (text) => {
       const users = JSON.parse(text)
       const updatedUserList = users.filter((user) => user.id !== +userId)
-      writeFile(`${__dirname}/data/users.json`, JSON.stringify(updatedUserList), { encoding: 'utf8' })
+      await writeFile(`${__dirname}/data/users.json`, JSON.stringify(updatedUserList), { encoding: 'utf8' })
     })
     .catch((err) => {
       console.log(err)
